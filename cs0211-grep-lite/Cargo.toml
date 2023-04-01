@@ -1,0 +1,10 @@
+[package]
+name = "cs0211-grep-lite"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap-v3 = "3.0.0-beta.1"
+regex = "1.7.3"
