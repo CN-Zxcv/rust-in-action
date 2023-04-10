@@ -33,7 +33,7 @@ impl CPU {
             let d = ((opcode & 0x000F) >> 0) as u8;
 
             let nnn = opcode & 0x0FFF;
-            let kk = (opcode & 0x00FF) as u8;
+            let _kk = (opcode & 0x00FF) as u8;
 
             match (c, x, y, d) {
                 // 停机
