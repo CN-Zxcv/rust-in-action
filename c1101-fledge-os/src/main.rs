@@ -13,6 +13,8 @@
 use core::intrinsics;
 use core::panic::PanicInfo;
 use x86_64::instructions::hlt;
+use core::fmt;
+use core::fmt::Write;
 
 // VGA 颜色定义
 #[allow(unused)]
@@ -48,8 +50,25 @@ enum Color {
 // 异常捕获
 #[panic_handler]
 #[no_mangle]
-pub fn panic(_info: &PanicInfo) -> ! {
-    intrinsics::abort();
+pub fn panic(info: &PanicInfo) -> ! {
+    // intrinsics::abort();
+    
+    let mut cursor = Cursor {
+        position: 0,
+        foreground: Color::White,
+        background: Color::Red,
+    };
+
+    // 清屏，设置成红色背景
+    for _ in 0 ..(80 * 25) {
+        cursor.print(b" ");
+    }
+    cursor.position = 0;
+    write!(cursor, "{}", info).unwrap();
+
+    loop { 
+        hlt() 
+    }
 }
 
 // 异常处理？
@@ -89,7 +108,9 @@ pub extern "C" fn _start() -> ! {
     // }
     //
     // VGA 文本有一个 16 色的调色板
+    // 0xb8000 是硬件定义的 缓冲区开始地址
 
+    //// 写缓存区测试
     // let framebuffer = 0xb8000 as *mut u8;
 
     // unsafe {
@@ -99,14 +120,18 @@ pub extern "C" fn _start() -> ! {
     //     framebuffer.offset(1).write_volatile(0x30);
     // }
 
-    let text = b"Hello World!!!";
-    let mut cursor = Cursor {
-        position: 0,
-        foreground: Color::Red,
-        background: Color::Black,
-    };
+    //// 输出文本
+    // let text = b"Hello World!!!";
+    // let mut cursor = Cursor {
+    //     position: 0,
+    //     foreground: Color::Red,
+    //     background: Color::Black,
+    // };
 
-    cursor.print(text);
+    // cursor.print(text);
+
+    //// 异常捕获测试
+    panic!("help!");
 
     loop {
         // hlt 简单避免 cpu 100%
@@ -139,5 +164,13 @@ impl Cursor {
             }
             self.position += 2;
         }
+    }
+}
+
+// write!() 需要的特征实现
+impl fmt::Write for Cursor {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.print(s.as_bytes());
+        Ok(())
     }
 }

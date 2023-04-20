@@ -16,5 +16,5 @@ build-command = ["build"]
 
 # 替换 cargo run 的默认行为
 run-command = [
-    "qemu-system-x86_64", "--nographic", "-drive", "format=raw,if=ide,index=0,media=disk,file={}", 
+    "qemu-system-x86_64", "-drive", "format=raw,if=ide,index=0,media=disk,file={}", 
 ]
