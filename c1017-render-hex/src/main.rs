@@ -4,8 +4,9 @@ use svg::node::element::{Path, Rectangle};
 use svg::Document;
 
 use crate::Operation::{Forward, Home, Noop, TurnLeft, TurnRight};
-
 use crate::Orientation::{East, North, South, West};
+use std::thread;
+use crossbeam::channel::{unbounded};
 
 const WIDTH: isize = 400;
 const HEIGHT: isize = WIDTH;
@@ -30,6 +31,11 @@ enum Operation {
     TurnRight,
     Home,
     Noop(u8),
+}
+
+enum Work {
+    Task((usize, u8)),
+    Finished,
 }
 
 #[derive(Debug)]
@@ -98,24 +104,77 @@ impl Artist {
     }
 }
 
-fn parse(input: &str) -> Vec<Operation> {
-    let mut steps = Vec::<Operation>::new();
-    for byte in input.bytes() {
-        let step = match byte {
-            b'0' => Home,
-            b'1'..=b'9' => {
-                let distance = (byte - 0x30) as isize;
-                Forward(distance * (HEIGHT / 10))
-            }
-            b'a' | b'b' | b'c' => TurnLeft,
-            b'd' | b'e' | b'f' => TurnRight,
-            _ => Noop(byte),
-        };
+// fn parse(input: &str) -> Vec<Operation> {
+//     let mut steps = Vec::<Operation>::new();
+//     for byte in input.bytes() {
+//         let step = match byte {
+//             b'0' => Home,
+//             b'1'..=b'9' => {
+//                 let distance = (byte - 0x30) as isize;
+//                 Forward(distance * (HEIGHT / 10))
+//             }
+//             b'a' | b'b' | b'c' => TurnLeft,
+//             b'd' | b'e' | b'f' => TurnRight,
+//             _ => Noop(byte),
+//         };
 
-        steps.push(step);
+//         steps.push(step);
+//     }
+
+//     steps
+// }
+
+fn parse_byte(byte: u8) -> Operation {
+    match byte {
+        b'0' => Home,
+        b'1'..=b'9' => {
+            let distance = (byte - 0x30) as isize;
+            Forward(distance * (HEIGHT / 10))
+        }
+        b'a' | b'b' | b'c' => TurnLeft,
+        b'd' | b'e' | b'f' => TurnRight,
+        _ => Noop(byte),
+    }
+}
+
+fn parse(input: &str) -> Vec<Operation> {
+    let n_threads = 2;
+    let (todo_tx, todo_rx) = unbounded();
+    let (results_tx, results_rx) = unbounded();
+    let mut n_bytes = 0;
+    for (i, byte) in input.bytes().enumerate() {
+        todo_tx.send(Work::Task((i, byte))).unwrap();
+        n_bytes += 1;
     }
 
-    steps
+    for _ in 0..n_threads {
+        todo_tx.send(Work::Finished).unwrap();
+    }
+    
+    for _ in 0..n_threads {
+        // 通过 clone 让 channel 可以被线程共享
+        let todo = todo_rx.clone();
+        let results = results_tx.clone();
+        thread::spawn(move || {
+            loop {
+                let task = todo.recv();
+                let result = match task {
+                    Err(_) => break,
+                    Ok(Work::Finished) => break,
+                    Ok(Work::Task((i, byte))) => (i, parse_byte(byte)),
+                };
+                results.send(result).unwrap();
+            }
+        });
+    }
+
+    let mut ops = vec![Noop(0); n_bytes];
+    for _ in 0..n_bytes {
+        let (i, op) = results_rx.recv().unwrap();
+        ops[i] = op;
+    }
+
+    ops
 }
 
 fn convert(operations: &Vec<Operation>) -> Vec<Command> {
