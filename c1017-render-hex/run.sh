@@ -1,0 +1,1 @@
+ cargo run -- $(echo "rust in action" | sha1sum | cut -f1 -d ' ')
